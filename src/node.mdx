@@ -1,0 +1,1073 @@
+import { FullScreenCode } from 'mdx-deck'
+import myTheme from './theme'
+
+export const theme = myTheme
+
+# NodeJS
+
+## Introduzione
+
+---
+
+## NodeJS
+
+NodeJS è un runtime per **JavaScript** costruito sul motore **V8** di Chrome.
+
+Con NodeJS è possibile scrivere applicazioni e servizi di rete _scalabili_, basati su un paradigma
+_asincrono_.
+
+---
+
+## NodeJS
+
+Sebbene NodeJS sia principalmente utilizzato per scrivere applicazioni di rete, può essere anche utilizzato
+per scrivere applicazioni CLI, demoni o anche semplici script.
+
+---
+
+## NodeJS
+
+Il linguaggio delle applicazioni NodeJS è **JavaScript**, ed essendo il runtime di node basato su V8,
+le funzionalità più moderne del linguaggio sono spesso supportate (arrow functions, async/await, generatori,
+const/let, ecc...)
+
+Alcune funzionalità non sono tuttavia (al momento) ancora supportate, per esempio il module system di ES6;
+per utilizzare tali funzionalità è necessario ricorrere al _transpiling_ o utilizzare **TypeScript**.
+
+---
+
+<FullScreenCode>
+
+```js
+/* hello-world.js */
+
+// Definizione di una funzione
+function hello(name = 'World') {
+	console.log(`Hello, ${name}!`)
+}
+
+// Estrazione degli argomenti passati da CLI
+const [, , name] = process.argv
+
+// Chiamata della funzione con un parametro
+hello(name)
+```
+
+</FullScreenCode>
+
+---
+
+<FullScreenCode>
+
+```js
+const http = require('http')
+
+const hostname = '127.0.0.1'
+const port = 3000
+
+const server = http.createServer((req, res) => {
+	res.statusCode = 200
+	res.setHeader('Content-Type', 'text/plain')
+	res.end('Hello World\n')
+})
+
+server.listen(port, hostname, () => {
+	console.log(`Server running at ${hostname}:${port}`)
+})
+```
+
+</FullScreenCode>
+
+---
+
+## Chiamate bloccanti e non bloccanti
+
+Ogni applicazione NodeJS, essendo scritta in JavaScript, viene eseguita su **un unico thread** ed è
+quindi in grado di eseguire un'unica operazione sincrona alla volta.
+
+Per scrivere applicazioni in grado di soddisfare _più richieste contemporaneamente_ è quindi necessario
+avvalersi di un paradigma _asincrono_, che è alla base dello sviluppo di applicazioni NodeJS.
+
+---
+
+## Chiamate bloccanti e non bloccanti
+
+Una chiamata è detta **bloccante** se il thread JavaScript deve rimanere in attesa del suo completamento
+prima di poter procedere. Una chiamata **non bloccante** o **asincrona** è una chiamata che non blocca
+l'esecuzione del thread JavaScript, ma riceve una callback che verrà eseguita al termine dell'operazione.
+
+Queste operazioni sono spesso riferite a codice non-JavaScript, e quindi a operazioni di I/O, timer, ecc..
+
+---
+
+## Chiamate bloccanti e non bloccanti
+
+Un esempio di chiamata **bloccante**:
+
+```js
+const fs = require('fs')
+const data = fs.readFileSync('/myfile')
+console.log(data)
+console.log('Hello!')
+```
+
+Il thread viene interrotto finché l'operazione di lettura del file `myfile` non è completata, e
+al termine dell'operazione viene stampato il contenuto del file e, subito dopo, il messaggio `Hello!`
+
+---
+
+## Chiamate bloccanti e non bloccanti
+
+Un esempio di chiamata **asincrona**
+
+```js
+const fs = require('fs')
+fs.readFile('/myfile', (err, data) => {
+	console.log(data)
+})
+console.log('Hello!')
+```
+
+L'avvio dell'operazione di lettura del file non interrompe il thread, il quale procede alla stampa del
+messaggio `Hello!`. Al termine dell'operazione di lettura, la callback passata alla funzione `readFile`
+viene eseguita, stampando il contenuto del file.
+
+---
+
+## Chiamate bloccanti e non bloccanti
+
+Se il codice bloccante può essere letto (e verrà eseguito) dalla prima all'ultima riga, nell'ordine in
+cui queste sono state scritte, questo non è più vero per il codice asincrono. È quindi importante
+prestare attenzione all'ordine delle operazioni, ed evitare operazioni in un ordine differente da quello
+che si intende:
+
+```js
+const fs = require('fs')
+fs.readFile('/file.md', (err, data) => {
+	if (err) throw err
+	console.log(data)
+})
+fs.unlinkSync('/file.md') // !!
+```
+
+---
+
+## Event Loop
+
+La possibilità di eseguire chiamate non bloccanti nonostante l'esecuzione su un singolo thread è data
+a NodeJS dall'implementazione di un **event loop**. Un event loop non è nient'altro che un ciclo
+(potenzialmente infinito) che esegue alcune operazioni (dette fasi) in un ordine specifico, e delega,
+quando possibile, l'esecuzione di alcune operazioni al kernel.
+
+```js
+while (true) {
+	workUnit()
+}
+```
+
+---
+
+<FullScreenCode>
+
+```js
+while (true) {
+	// Esegue i timers
+	timers()
+
+	// Esegue le callbacks in attesa
+	pendingCallback()
+
+	// Idle (uso interno)
+	prepare()
+
+	// Riceve connessioni in ingresso, dati, ecc...
+	poll()
+
+	// Esegue altre callback in attesa
+	check()
+
+	// Esegue le callback degli eventi 'close'
+	closeCallbacks()
+}
+```
+
+</FullScreenCode>
+
+---
+
+## Event Loop: Timers
+
+In JavaScript è possibile avviare timer one-shot o ricorrenti attraverso le funzioni `setTimeout` e
+`setInterval`. Entrambe queste funzioni ricevono delle _callback_ da eseguire dopo (o ogni) una certa
+quantità di ms.
+
+Questa fase dell'event loop si occupa di eseguire tali callback, quando è passato _almeno_ l'intervallo
+di tempo specificato. Di fatto, altri fattori come lo scheduling del sistema operativo o altre operazioni
+di I/O potrebbero ritardare l'esecuzione di un timer, che verrà comunque eseguito nel minor tempo
+possibile.
+
+---
+
+## Event Loop: Pending Callbacks
+
+Questa fase dell'event loop si occupa di eseguire callback che sono state rinviate a questo ciclo dal
+ciclo precedente. Di fatto, le callback eseguite in questa fase si riferiscono a operazioni molto
+specifiche gestite dal sistema operativo (per esempio operazioni relative ad errori sullo stack di rete).
+
+---
+
+## Event Loop: Idle, prepare
+
+Questa fase è utilizzata internamente da NodeJS
+
+---
+
+## Event Loop: Poll
+
+La fase di Poll si occupa di gestire le callback in attesa sulla _poll queue_ e, dopo averle eseguite,
+eseguire eventuali callback relative a timer che hanno raggiunto il loro limite temporale.
+
+---
+
+## Event Loop: Check
+
+Questa fase è utilizzata per eseguire le callback programmate dalle chiamate a `setImmediate`. In generale,
+le callback passate a `setImmediate` saranno **sempre** chiamate dopo la fase di Poll, mentre le chiamate
+a `setTimeout` potrebbero essere chiamate anche prima del termine delle operazioni di I/O.
+
+---
+
+## Event Loop: Close Callbacks
+
+In questa fase vengono eseguite tutte le callback relative agli eventi `close`, per esempio relative
+alle chiusure di socket o handle.
+
+---
+
+## CommonJS
+
+NodeJS è strutturato in modo _modulare_: ogni file `.js` rappresenta un modulo, e ogni modulo può _importare_
+ed _esportare_ dei simboli (funzioni, variabili, oggetti, ecc...).
+
+NodeJS è nato prima che ES6 fosse uno standard, e prima che venisse implementato il Module System di JavaScript,
+ed ha quindi una gestione dei moduli differente da quella che si utilizza con JavaScript ES6 nel browser.
+
+Il sistema di moduli di NodeJS è chiamato **CommonJS**.
+
+---
+
+## CommonJS
+
+Per _importare_ un modulo, si utilizza la funzione `require`, disponibile nello _scope_ di ogni modulo. La funzione
+`require` riceve il percorso assoluto o relativo del file (o della directory) che vogliamo importare:
+
+```js
+const sum = require('./functions/sum.js')
+
+const result = sum(2, 2)
+
+console.log(result) // 4
+```
+
+L'uso dell'estesione _non è obbligatorio_ e NodeJS cercherà di risolverla in automatico. È importante ricordare che `require` può
+essere usata per importare non solo codice JavaScript, ma anche file JSON.
+
+---
+
+## CommonJS
+
+Per _esportare_ dei simboli da un modulo, è necessario valorizzare il contenuto della variabile `module.exports`, presente nello
+_scope_ di ogni modulo:
+
+```js
+module.exports = function sum(a, b) {
+	return a + b
+}
+```
+
+In alternativa, è possibile utilizzare direttamente la variabile `exports`, che altro non è che una _shortcut_ che punta a `module.exports`.
+
+---
+
+## CommonJS
+
+Un modulo può esportare uno o più simboli, in base a come viene valorizzata `module.exports`. Dal momento che il suo valore di default è un
+oggetto vuoto, possiamo esportare più di un simbolo valorizzandone individualmente le chiavi:
+
+```js
+// module.exports = {}
+module.exports.sum = function(a, b) {
+	return a + b
+}
+module.exports.multiply = function(a, b) {
+	return a * b
+}
+```
+
+In generale, `module.exports` può essere valorizzata in qualunque modo si desideri, in base a quelle che sono le esigenze del modulo.
+
+---
+
+## CommonJS
+
+Le variabili `require`, `module` e `exports` sono disponibili all'interno di ogni modulo perché NodeJS, dietro le quinte, effettua
+il _wrapping_ del contenuto di ogni file all'interno di una funzione anonima anche nota come _module wrapper_:
+
+```js
+;(function(exports, require, module, __filename, __dirname) {
+	// Codice del modulo
+})
+```
+
+Ogni modulo ha disponibile nel suo scope anche `__filename`, che rappresenta il nome del file, e `__dirname`, che rappresenta il
+percorso completo della directory in cui è contenuto il file.
+
+---
+
+## Setup
+
+-   Installare NodeJS
+
+    -   Windows/Mac/Linux: https://nodejs.org
+    -   Linux/Mac: https://github.com/nvm-sh/nvm (consigliato)
+
+-   Verificare che NodeJS sia installato:
+    -   Aprire un terminale
+    -   Digitare `node -v`
+
+---
+
+## Esercizio
+
+-   Si crei una cartella vuota e si inizializzi al suo interno un nuovo progetto utilizzando il comando `npm init`;
+-   Si implementi il modulo `multiply.js`, che esporta una funzione `multiply` in grado di moltiplicare due numeri ricevuti come parametri;
+-   Si implementi il modulo `index.js`, che importa la funzione `multiply` dal modulo `multiply.js` e la consuma, stampando il risultato di
+    una moltiplicazione tra due numeri;
+-   Invocare lo script utilizzando il comando `node index.js` dall'interno della cartella del progetto;
+
+-   (Opzionale) Ricevere i due numeri come parametri da riga di comando: `node index.js 3 6`;
+
+---
+
+## `package.json`
+
+Il file `package.json` è presente all'interno di tutti i progetti NodeJS e contiene al suo interno diverse
+informazioni relative al progetto, come per esempio il nome, la versione, la descrizione, gli autori e le
+_dipendenze_ del progetto, ovvero i pacchetti di terze parti da cui il progetto dipende e la versione utilizzata
+per ciascuno di essi.
+
+---
+
+<FullScreenCode>
+
+```json
+{
+	"name": "multiply",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC"
+}
+```
+
+</FullScreenCode>
+
+---
+
+## `npm`
+
+`npm`, o Node Package Manager, è il gestore di pacchetti ufficiale di NodeJS. Attraverso il binario `npm`, che viene automaticamente installato
+con ogni installazione di NodeJS, è possibile installare pacchetti di terze parti scaricandoli dal _registry_ di `npm` utilizzando il comando
+`npm install` (o `npm i`):
+
+```bash
+$ npm install ramda
+npm notice created a lockfile as package-lock.json. You should commit this file.
+
++ ramda@0.26.1
+added 1 package from 4 contributors and audited 1 package in 1.027s
+found 0 vulnerabilities
+```
+
+---
+
+## `npm`
+
+`npm` tiene traccia della versione **esatta** di ogni pacchetto che viene installato direttamente o indirettamente nel progetto all'interno del
+file `package-lock.json`. È importante tracciare questo file con un sistema di source control, per essere sicuri di poter reinstallare su qualunque
+computer esattamente gli stessi pacchetti che sono stati installati in precedenza utilizzando il comando `npm ci`
+
+```bash
+$ npm ci
+```
+
+---
+
+## `npm`
+
+`npm` effettua, al termine dell'installazione, una verifica di tutti i pacchetti installati e rende noto all'utente se sono presenti problemi di
+sicurezza. In tal caso è possibile utilizzare il comando `npm audit` per verificare quali problematiche sono presenti, ed il comando `npm audit fix`
+per tentare una soluzione automatica.
+
+Non sempre la soluzione automatica funziona: in caso di problemi di sicurezza persistenti è importante valutarne l'impatto e, eventualmente, sostituire
+la dipendenza non sicura con una dipendenza alternativa più sicura.
+
+---
+
+## Dipendenze
+
+Quando si installa un pacchetto con `npm`, questo viene automaticamente salvato nell'elenco delle dipendenze del progetto, dette anche `dependencies`.
+`npm` prevede quattro tipi diversi di dipendenze:
+
+-   `dependencies`: le dipendenze principali del progetto, utilizzate dai suoi moduli per poter attuare le sue funzionalità in maniera corretto;
+-   `devDependencies`: le dipendenze necessarie alla _toolchain_ del progetto, ovvero quelle utilizzate per effettuare _build_, _transpiling_, ecc...;
+-   `peerDependencies`: dipendenze necessarie al funzionamento del progetto ma che non vengono installate automaticamente, di solito specificate da librerie che utilizzano
+    altre librerie di terze parti;
+-   `optionalDependencies`: dipendenze opzionali, la cui assenza non compromette il funzionamento del progetto (ma ne riduce le funzionalità);
+
+---
+
+## Dipendenze
+
+Per installare `dependencies` è sufficiente utilizzare il comando `npm install`, ma in versioni più vecchie di NodeJS è necessario specificare l'opzione `--save`
+per aggiungere il riferimento alla dipendenza nel file `package.json`. Nelle versioni più moderne di node, l'opzione `--save` non è più necessaria:
+
+```bash
+$ npm install --save ramda
+```
+
+---
+
+## Dipendenze
+
+Per installare `devDependencies` è necessario utilizzare l'opzione `--save-dev` o `-D` per il comando `npm install`. Le `devDependencies` verranno installate,
+assieme a tutte le altre dipendenze, nella directory `node_modules`, ma saranno aggiunte alla voce `devDependencies` del file `package.json`.
+
+```bash
+$ npm install --save-dev webpack
+```
+
+---
+
+## Dipendenze
+
+Tipicamente, quando si aggiunge una dipendenza ad un progetto, è per poter utilizzare del codice da essa esportato. Per importare un modulo esportato da una
+dipendenza installata tramite `npm`, è sufficiente nella maggior parte dei casi passare a `require` il nome della dipendenza:
+
+```js
+const { sum } = require('ramda')
+
+console.log(sum([1, 2, 3, 4])) // 9
+```
+
+Ogni libreria di terze parti solitamente è corredata da una documentazione appropriata, che esplicita quali simboli sono esportati da ciascun modulo.
+
+---
+
+## Esercizio
+
+-   Dopo aver installato la libreria `ramda`, utilizzare la funzione `mean` da esso esportata per calcolare la media di un array di numeri e mostrarla come output di uno script.
+
+> La documentazione della funzione `mean` è disponibile all'indirizzo https://ramdajs.com/docs/#mean
+
+-   (Opzionale) Ricevere i numeri di cui fare la media come parametri da riga di comando
+
+```bash
+$ node mean.js 10 15 16 20
+15.25
+```
+
+---
+
+## Moduli Builtin
+
+NodeJS include al suo interno un certo numero di moduli _built-in_, ovvero facenti parte del core della piattaforma. Tra le operazioni che si possono effettuare con i moduli
+built-in troviamo:
+
+-   Creazione di server HTTP (`http`)
+-   Lettura e scrittura di buffer binari (`buffer`)
+-   Interazione con il Filesystem (`fs`)
+-   Interazione con lo stack di rete (`net`)
+-   Esecuzione di algoritmi crittografici (`crypto`)
+-   ... molto altro
+
+---
+
+## Il modulo `fs`
+
+Il modulo `fs` è particolarmente importante perché permette alle nostre applicazioni di interagire con il filesystem. Dal modulo `fs` sono esposti diversi metodi, tra cui:
+
+-   `readFile`: legge il file con il percorso e l'encoding specificato
+-   `writeFile`: scrive il contenuto di un buffer sul file specificato
+-   `mkdir`: crea la directory specificata
+-   `unlink`: elimina il file specificato
+-   `appendFile`: aggiunge del contenuto in coda ad un file e lo crea se non esiste
+
+---
+
+<FullScreenCode>
+
+```js
+const fs = require('fs')
+
+fs.readFile('./file.md', (err, data) => {
+	if (err) throw err
+
+	console.log(data)
+})
+```
+
+</FullScreenCode>
+
+---
+
+## Funzioni Bloccanti
+
+La maggior parte delle funzioni messe a disposizione dal modulo `fs` e, in generale, dai moduli built-in di NodeJS sono funzioni **asincrone**. Per molte di esse è tuttavia
+disponibile una versione **bloccante**, avente lo stesso nome dell'originale con l'aggiunta del postfisso `Sync`.
+
+Il metodo `readFile`, ad esempio, è disponibile anche in versione **bloccante** con il nome `readFileSync`. Sebbene l'uso delle versioni bloccanti sia lecito in certe situazioni,
+è _fortemente sconsigliato_ l'uso di tali funzioni nel contesto di applicazioni web o applicazioni che devono servire più richieste contemporaneamente.
+
+---
+
+## Le callback NodeJS
+
+Le funzioni asincrone messe a disposizione dai moduli built-in di NodeJS ricevono, come ultimo parametro, una callback che viene invocata nel momento in cui l'operazione svolta
+dalla funzione è terminata o quando si verifica un errore durante la sua esecuzione. Queste callback rispettano lo stesso formato:
+
+```js
+function callback(error, data) {
+	if (error) {
+		// Gestione dell'errore
+	}
+
+	// Codice della callback
+}
+```
+
+---
+
+## Le callback NodeJS
+
+L'utilizzo delle callback è necessario quando si implementa un paradigma asincrono, ma il risultato dell'utilizzo di numerose callback in cascata è un codice difficilmente
+leggibile ed il cui flusso risulta complicato da seguire; l'ordine delle operazioni non è infatti sempre ed immediatamente ovvio!
+
+```js
+doSomethingWith('file.md', (err, data) => {
+	if (err) throw err
+	doSomethingElseWith('anotherFile.md', (err, result) => {
+		if (err) throw err
+		aggregateResults(data, result, (err, aggregated) => {
+			// ...
+		})
+	})
+})
+```
+
+---
+
+## La funzione `promisify`
+
+Il modulo `util` di NodeJS contiene al suo interno funzioni di utilità generale, tra cui un metodo molto importante per evitare la 'callback hell': `promisify`.
+
+La funzione `promisify` riceve come parametro una funzione che a sua volta riceve come ultimo parametro una callback NodeJS, e restituisce una versione di questa
+funzione che anziché ricevere una callback restituisce una `Promise`.
+
+L'utilizzo delle `Promise` aiuta in maniera sostanziale nella scrittura di codice asincrono, specialmente assieme alla parola chiave `await` all'interno di funzioni
+marchiate come `async`, e rende il risultato finale più facilmente leggibile e mantenibile nel tempo.
+
+---
+
+<FullScreenCode>
+
+```js
+const { promisify } = require('util')
+const { readFile } = require('fs')
+
+const readFileAsync = promisify(readFile)
+
+async function run() {
+	try {
+		const data = await readFileAsync('./myfile.md', 'utf-8')
+		console.log(data)
+	} catch (err) {
+		console.error('Error!', err)
+	}
+}
+
+run()
+```
+
+</FullScreenCode>
+
+---
+
+## ExpressJS
+
+ExpressJS (anche noto semplicemente come Express) è un framework utilizzato per creare applicazioni web e API con NodeJS. ExpressJS fornisce un layer molto sottile
+di funzionalità comuni, senza tuttavia precludere l'utilizzo delle funzionalità base di NodeJS.
+
+---
+
+## ExpressJS
+
+L'installazione di Express avviene, come per tutte le altre librerie NodeJS, attreverso `npm`:
+
+```bash
+$ mkdir my-project		# Creo la directory del progetto
+$ cd my-project			# Entro nella directory
+$ npm init -y			# Inizializzo il progetto
+$ npm i express			# Installo Express
+```
+
+---
+
+<FullScreenCode>
+
+```js
+const express = require('express')
+const app = express()
+const port = 3000
+
+app.get('/', (req, res) => {
+	res.send('Hello World!')
+})
+
+app.listen(port, () => {
+	console.log(`Listening on port ${port}...`)
+})
+```
+
+</FullScreenCode>
+
+---
+
+## ExpressJS
+
+Un'applicazione Express viene creata effettuando una chiamata alla funzione `express`, esportata dal modulo `express`:
+
+```js
+const express = require('express')
+const app = express()
+```
+
+---
+
+## ExpressJS
+
+Una volta ottenuta l'istanza `app` dell'applicazione, è possibile specificare su di essa quali operazioni effettuare
+sulla base delle richieste ricevute, e inizializzare il web server attraverso il metodo `listen`:
+
+```js
+app.listen(port, () => {})
+```
+
+Il metodo `listen` riceve come primo parametro la porta sulla quale rimanere in ascolto, e come ultimo parametro una callback
+che verrà chiamata una volta che il web server avrà completato la sua inizializzazione e sarà pronto all'ascolto. È possibile
+anche specificare, come parametri intermedi, l'host sul quale rimanere in ascolto e un `backlog`, ovvero la dimensione massima
+della coda delle connessioni in ingresso.
+
+---
+
+## Routing
+
+Con Express è possibile specificare una callback da eseguire sulla base della _route_ che viene invocata all'indirizzo sul quale
+il server è in ascolto, sulla base del _metodo_ HTTP utilizzato:
+
+```js
+app.get('/', (req, res) => {
+	res.send('Hello World!')
+})
+```
+
+Sull'oggetto `app` sono disponibili tanti metodi quanti sono i metodi HTTP, e quelli più utilizzati sono probabilmente `get`, `post`,
+`put`, `delete`, `head`, `options`.
+
+Ciascuno di questi metodi riceve come primo parametro la _route_ per la quale verrà eseguita la callback, passata come secondo parametro.
+
+---
+
+## Routing
+
+Ogni callback passata ad un metodo di routing riceve tre parametri:
+
+-   `req`: l'oggetto contenente la _richiesta_ ricevuta dal client;
+-   `res`: l'oggetto che modella la risposta che verrà inviata al client;
+-   `next`: una funzione che può essere invocata per passare la gestione della richiesta al prossimo match o per lanciare eccezioni;
+
+---
+
+## Routing
+
+Se volessimo, per esempio, rispondere diversamente per le richieste GET inviate a `'/number'`, dovremmo semplicemente aggiungere un
+nuovo handler:
+
+```js
+app.get('/', (req, res) => {
+	res.send('Hello World!')
+})
+
+app.get('/number', (req, res) => {
+	res.send(`A number: ${Math.random()}`)
+})
+```
+
+---
+
+## Routing
+
+Nel definire una _route_, è anche possibile specificare quali _parametri_ vogliamo ricevere nella URL, in modo da poterli utilizzare per
+gestire la richiesta.
+
+```js
+app.get('/greet/:name', (req, res) => {
+	const { name } = req.params
+	res.send(`Hello, ${name}!`)
+})
+```
+
+Un parametro viene specificato, nella URL della _route_, come un identificatore con il prefisso `:`. All'interno della callback, i parametri
+sono accessibili sull'oggetto `params`, presente sull'oggetto `req`. L'oggetto `params` è di default valorizzato ad un oggetto vuoto.
+
+---
+
+## Routing
+
+Un parametro può essere indicato come opzionale apponendo alla fine del suo nome il carattere `?`. In tal caso avremo un match per la _route_ sia in
+presenza che in assenza del parametro.
+
+```js
+app.get('/greet/:name?', (req, res) => {
+	const { name = 'World' } = req.params
+	res.send(`Hello, ${name}!`)
+})
+```
+
+---
+
+## Esercizio
+
+-   Inizializzare un'applicazione Express;
+-   Creare un file `users.json` avente come contenuto un array di oggetti, ciascuno avente una chiave `id` valorizzata come numero intero e una chiave
+    `name` valorizzata come stringa;
+-   Importare il file `users.json` nell'applicazione;
+-   Creare un server express contente una _route_ `/users/:id` in grado di mostrare il nome dell'utente corrispondente all'id specificato come parametro,
+    o un errore nel caso in cui l'utente non esista.
+
+```json
+[
+	{ "id": 1, "name": "Frank" },
+	{ "id": 2, "name": "Billy" },
+	{ "id": 3, "name": "Kate" },
+	{ "id": 4, "name": "Sarah" }
+]
+```
+
+---
+
+## Developer Experience
+
+Una volta avviata un'applicazione NodeJS, questa rimane residente in memoria finché non viene terminata. Le modifiche ai file sorgenti dell'applicazione
+**non avranno nessun effetto** finché l'applicazione non sarà terminata e riavviata.
+
+Esistono degli strumenti che permettono di monitorare i file sorgenti di un'applicazione e riavviarla in automatico ogniqualvolta uno dei file viene modificato.
+Uno di questi strumenti è `nodemon`.
+
+---
+
+## `nodemon`
+
+`nodemon` è uno strumento di sviluppo che può essere installato con `npm`, e va normalmente installato come `devDependency` in quanto non è richiesto dall'applicazione
+per funzionare correttamente, ma solo in fase di sviluppo per non dover manualmente eseguire il riavvio ad ogni modifica del codice:
+
+```bash
+$ npm i -D nodemon
+```
+
+Una volta installato, sarà possibile eseguire `nodemon` con il comando `npx`. `npx` permette di eseguire un qualunque eseguibile installato da una dipendenza di progetto
+e presente all'interno della cartella `node_modules`:
+
+```bash
+$ npx nodemon .
+```
+
+---
+
+## `npm` scripts
+
+L'uso di `npx` può risultare comodo in situazioni semplici, ma in situazioni più complesse o che vengono effettute spesso, può essere più comodo aggiungere uno script
+nella sezioen `scripts` del file `package.json`:
+
+```json
+"scripts": {
+	"watch": "nodemon ."
+}
+```
+
+Gli scripts inseriti nel file `package.json` non hanno bisogno di utilizzare `npx`, e possono lanciare qualunque eseguibile di sistema o qualunque binario presente in
+`node_modules/.bin`. Per eseguire uno script npm si utilizza il comando `npm run`:
+
+```bash
+$ npm run watch
+```
+
+---
+
+## `npm` scripts
+
+Alcuni script `npm`, come per esempio `start` e `test`, non richiedono l'uso del comando `run` e possono essere eseguiti direttamente:
+
+```bash
+$ npm start
+$ npm test
+```
+
+È comunque possibile eseguirli anche attraverso l'invocazione del comando `run`.
+
+---
+
+## Esercizio
+
+-   Modificare il progetto dell'esercizio precedente per monitorare i file utilizzando `nodemon` e uno script `npm`;
+-   Aggiungere una _route_ `/users/count` che restituisce il numero totale di utenti presenti.
+
+> In che modo l'ordine delle route influenza il comportamento di Express?
+
+---
+
+## Middleware
+
+Express permette di definire e applicare ad una singola route o a tutte le route dell'applicazione, uno o più _middleware_.
+Un _middleware_ è una funzione avente la stessa struttura della callback passata ai _route handlers_, e permette di astrarre logica che altrimenti
+dovrebbe essere ripetuta su ogni handler.
+
+---
+
+## Middleware
+
+Un middleware è una funzione definita come:
+
+```js
+function middleware(req, res, next) {
+	// Codice del middleware
+}
+```
+
+Ogni middleware può operare a sua discrezione sia sull'oggetto `req` che sull'oggetto `res`, chiamando la funzione `next` una volta completate le
+sue operazioni. Un middleware può anche _interrompere la richiesta_ e _lanciare eccezioni_, impedendo quindi che la richiesta e la risposta vengano
+propagati al passo successivo.
+
+---
+
+## Middleware
+
+Dal momento che ogni _route handler_ può avere un numero arbitrario di middleware, ed è anche possibile definire dei middleware da utilizzare per ogni
+handler, viene di fatto definito uno _stack di middleware_ che per ogni richiesta verranno chiamati in _ordine specifico_. L'uso dei middleware e la
+loro composizione è alla base della scrittura di ogni applicazione Express!
+
+---
+
+<FullScreenCode>
+
+```js
+const loggingMiddleware = (req, res, next) => {
+	console.log(`I have received a request at ${req.path}`)
+	next()
+}
+
+app.use(loggingMiddleware)
+```
+
+</FullScreenCode>
+
+---
+
+## Middleware
+
+Per applicare un middleware a **tutti** gli handler dell'applicazione, è necessario passarlo alla funzione `use` sull'istanza dell'applicazione Express:
+
+```js
+app.use(loggingMiddleware)
+```
+
+---
+
+## Middleware
+
+Per applicare un middleware ad una singola _route_, è necessario definire la route passandole un _array_ di callback anziché un'unica callback:
+
+```js
+app.get('/', [
+	loggingMiddleware,
+	(req, res) => {
+		return res.send('Hello!')
+	},
+])
+```
+
+---
+
+## Middleware
+
+# <u>L'ordine dei middleware è importante!</u>
+
+---
+
+## Esercizio
+
+-   Si scriva il middleware `loggingMiddleware`, che stampa sulla console il percorso di ciascuna richiesta ricevuta;
+-   (Opzionale) Si scriva il `fileLoggingMiddleware`, che aggiunge ad un file chiamato `app.log` una riga per ogni richiesta ricevuta, contente il percorso della richiesta;
+-   Si scriva il middleware `randomAccessMiddleware`, che estrae un numero casuale e lancia un'eccezione se il numero è dispari, bloccando l'accesso all'utente. Applicare il middleware
+    solamente alla route `/`.
+-   Definire ognuno dei middleware sopra indicati in un modulo dedicato.
+
+> La funzione `fs.appendFile` permette di aggiungere una riga ad un file, creandolo se non esiste!
+
+---
+
+## Struttura del progetto
+
+All'aumentare del numero di file, risulta necessario adottare una struttura del progetto più ordinata. È convenzione inserire tutto il codice di un progetto all'interno della
+cartella `src`, la quale può a sua volta essere divisa in ulteriori sottodirectory.
+
+---
+
+<FullScreenCode>
+
+```text
+- my-project
+	- node_modules
+	- src
+		- middleware
+			file-logging.middleware.js
+			logging.middleware.js
+			random-access.middleware.js
+		index.js
+		users.json
+	package.json
+	package-lock.json
+	app.log
+```
+
+</FullScreenCode>
+
+---
+
+## Gestione degli errori
+
+Nel momento in cui passiamo alla funzione `next` di Express un errore, questo viene automaticamente gestito dal framework attraverso l'uso di un _default error handler_.
+Possiamo tuttavia decidere di scrivere un error handler personalizzato, anche in questo caso o per tutte le _route_ o solo per alcune: un error handler è infatti un
+middleware che va a posizionarsi al fondo dello stack dei middleware, e ha una _signature_ leggermente differente:
+
+```js
+function errorHandler(err, req, res, next) {
+	// Codice di gestione dell'errore
+}
+
+app.use(errorHandler)
+app.get('/', [(req, res, next) => {}, errorHandler])
+```
+
+---
+
+## Gestione degli errori
+
+Un error handler ha la stessa struttura di un middleware ma:
+
+-   Ha un parametro aggiuntivo in testa all'elenco dei parametri, che contiene l'errore che è stato passato a `next`;
+-   Gli error handlers **devono** essere inseriti al fondo dello stack dei middleware;
+
+---
+
+## Gestione degli errori
+
+Nello sviluppare API, ci verrà sovente richiesto di restituire risposte con un codice HTTP differente da `200 OK`. È possibile
+specificare il codice HTTP da utilizzare nella risposta attraverso il metodo `status` dell'oggetto `res`. Possiamo anche restituire
+risposte in formato JSON utilizzando il metodo `res.json`:
+
+```js
+function errorHandler(err, req, res, next) {
+	res.status(500).json({ error: err.message })
+}
+```
+
+---
+
+## Esercizio
+
+-   Si implementi un error handler in grado di inviare l'errore in formato JSON al client, utilizzando lo status code 500, quando la chiamata all'endpoint `/` fallisce;
+-   Implementare un error handler che restituisca uno status code 404 quando un utente non viene trovato durante una chiamata a `/users/:id`
+-   Si modifichi l'error handler affinché, prima di inviare la risposta, aggiunga al file `error.log` una riga con l'errore ricevuto.
+
+---
+
+## Middleware comuni
+
+Lo sviluppo di API con Express è un'operazione molto comune, e molti dei problemi nei quali si potrebbe incorrere sono già stati risolti - sovente
+attraverso l'uso di middleware dedicati. Facendo riferimento a https://github.com/rajikaimal/awesome-express#middleware, alcuni dei middleware più
+comunemente utilizzati nello sviluppo di API con Express sono:
+
+-   [`cors`](https://github.com/expressjs/cors): permette di ricevere richieste XHR da domini/porte differenti dal quella dell'applicazione Express;
+-   [`body-parser`](https://github.com/expressjs/body-parser): analizza e deserializza automaticamente il contenuto delle richieste (utile per POST JSON);
+-   [`multer`](https://github.com/expressjs/multer): permette di gestire payload di tipo `multipart/form-data` per l'upload di file;
+-   [`passport`](http://www.passportjs.org/): gestisce l'autenticazione in diverse modalità;
+-   [`express-rate-limit`](https://github.com/nfriedly/express-rate-limit): implementa una politica di rate limiting sulle richieste;
+
+---
+
+<FullScreenCode>
+
+```js
+/* Esempio: Upload di un file */
+
+// ATTENZIONE! Questo codice è esclusivamente
+// a scopo esemplificativo e non è sicuro.
+// --> NON USARE IN PRODUZIONE! <--
+
+const express = require('express')
+const multer = require('multer')
+const { rename } = require('fs')
+const { promisify } = require('util')
+
+const upload = multer({ dest: 'uploads/' })
+const app = express()
+const port = 3000
+
+const renameAsync = promisify(rename)
+
+app.post('/', upload.single('image'), async (req, res, next) => {
+	await renameAsync(`uploads/${req.file.filename}`, `uploads/${req.file.originalname}`)
+
+	return res.send(`Ok!`)
+})
+
+app.listen(port, () => {
+	console.log(`Upload app listening on port ${port}!`)
+})
+```
+
+</FullScreenCode>
+
+---
+
+## Esercizio
+
+Creare una _route_ POST '/double' che riceve un payload JSON contente una chiave `number` di tipo numerico, e restituire al client il numero
+in essa contenuto moltiplicato per 2.
+
+```bash
+$ curl \
+	-X POST \
+    -H "Content-Type: application/json" \
+    --data "{\"number\": 2}" \
+    localhost:3000/double
+4
+```
+
+> Per gestire un payload JSON, utilizzare `body-parser`

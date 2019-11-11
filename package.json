@@ -1,0 +1,20 @@
+{
+	"name": "nodejs-course",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"start:node": "mdx-deck src/node.mdx",
+		"start:node2": "mdx-deck src/node2.mdx",
+		"start:mongo": "mdx-deck src/mongodb.mdx"
+	},
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"mdx-deck": "^3.0.13"
+	},
+	"dependencies": {
+		"react-syntax-highlighter": "^11.0.2"
+	}
+}
