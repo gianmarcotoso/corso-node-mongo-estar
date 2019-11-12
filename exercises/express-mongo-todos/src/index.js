@@ -1,11 +1,12 @@
 const express = require('express')
 const connect = require('./utils/connect.util')
 const bodyParser = require('body-parser')
-const port = 3000
 const { ObjectID } = require('mongodb')
 
+const port = 3000
+
 async function start() {
-	const { db, client } = await connect('mydatabase')
+	const { db } = await connect('mydatabase')
 
 	const app = express()
 
@@ -29,9 +30,9 @@ async function start() {
 			return next(new Error('ERR_NO_TITLE'))
 		}
 
-		await todosCollection.insertOne({ title })
+		const insertResult = await todosCollection.insertOne({ title })
 
-		return res.status(200).send()
+		return res.status(200).json({ id: insertResult.insertedIds[0] })
 	})
 
 	app.put('/todos/:id', async (req, res, next) => {
