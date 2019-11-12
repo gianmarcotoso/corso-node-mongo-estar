@@ -1,0 +1,510 @@
+import { FullScreenCode } from 'mdx-deck'
+import myTheme from './theme'
+
+export const theme = myTheme
+
+## MongoDB
+
+MongoDB è un database _documentale_ general purpose. Rientra nella classificazione dei DBMS NoSQL e
+utilizza documenti in formato JSON.
+
+Per utilizzare MongoDB è possibile installarlo localmente o su un server remoto, nativamente o
+utilizzando Docker.
+
+---
+
+## MongoDB
+
+Le istruzioni per installare MongoDB localmente su Windows si trovano all'indirizzo https://docs.mongodb.com/manual/tutorial/install-mongodb-on-windows/.
+Dopo l'installazione è opportuno aggiungere al PATH di Windows il percorso `C:\Program Files\MongoDB\Server\4.2\bin`.
+
+Per utilizzare MongoDB con Docker, è sufficiente lanciare i comandi:
+
+```bash
+$ docker pull mongodb:latest
+$ docker run -p 27017:27017 --name <nome_container> -d mongo:latest
+```
+
+---
+
+## MongoDB
+
+MongoDB mette a disposizione una CLI (Command Line Interface) per connettersi all'istanza del DBMS ed
+eseguire comandi, in maniera simile a quanto avviene con altri DBMS come MySQL, PostgreSQL, Redis, ecc..
+
+Per eseguire la CLI è sufficiente lanciare il comando
+
+```bash
+$ mongo
+```
+
+Nel caso si utilizzi Docker:
+
+```bash
+$ docker exec -it <nome_container> mongo
+```
+
+È anche disponibile un tool grafico chiamato Compass, disponibile sul sito ufficiale di MongoDB.
+
+---
+
+## Esercizio
+
+Installare MongoDB e verificare il corretto funzionamento connettendosi al database utilizzando
+il comando `mongo` o il tool grafico Compass.
+
+---
+
+## MongoDB
+
+Un database MongoDB è composto da _collezioni_, ciascuna delle quali contiene un numero arbitrario di
+_documenti_. Un documento è un oggetto JSON che può contenere, al suo interno, un numero qualunque di
+campi e può avere una struttura arbitraria.
+
+Dal momento che MongoDB è _schemaless_, i documenti all'interno di una collezione possono avere una
+struttura eterogenea, e non è necessario specificare a priori quali dati saranno contenuti in una
+collezione o creare la collezione prima di poterla utilizzare. Allo stesso modo, anche i database
+verranno creati in automatico da MongoDB quando necessario.
+
+---
+
+<FullScreenCode>
+
+```bash
+$ mongo
+MongoDB shell version v4.2.1
+...
+> show dbs
+admin   0.000GB
+config  0.000GB
+local   0.000GB
+> use test
+switched to db test
+> db.todos.insertOne({ title: "Compra il latte", priority: 5 })
+{
+        "acknowledged" : true,
+        "insertedId" : ObjectId("5dc57370aca586936de813f3")
+}
+> db.todos.find().pretty()
+{
+        "_id" : ObjectId("5dc5701caca586936de813f2"),
+        "title" : "Compra il latte",
+        "priority" : 5
+}
+```
+
+</FullScreenCode>
+
+---
+
+## Documenti
+
+Ogni _documento_ in MongoDB rappresenta un elemento inserito all'interno di una _collezione_. Sebbene
+ogni documento possa avere una struttura differente, è consigliato mantenere una struttura coerente
+all'interno della stessa collezione.
+
+---
+
+## Documenti
+
+Ogni documento è identificato da una chiave speciale denominata `_id`, generata in automatico da MongoDB
+al momento dell'inserimento del documento all'interno di una collezione.
+
+`_id` appartiene al tipo `ObjectId`, ed è possibile utilizzare `_id` per identificare in maniera
+univoca un documento all'interno di una collezione.
+
+```js
+{
+        "_id" : ObjectId("5dc5701caca586936de813f2"),
+        "title" : "Compra il latte",
+        "priority" : 5
+}
+```
+
+---
+
+## Collezioni
+
+Una _collezione_ è un contenitore al cui interno sono salvati un certo numero di documenti; la _collezione_
+svolge, in MongoDB, un ruolo simile a quello della tabella in un database relazionale.
+
+Su una collezione è possibile effettuare operazioni di _inserimento_, _ricerca_, _modifica_ e _rimozione_
+di uno o più elementi, in maniera simile a quanto avviene con le query sui database relazionali.
+
+---
+
+## MongoDB e NodeJS
+
+Per collegare un'applicazione NodeJS a un database MongoDB, il modo più semplice è quello di utilizzare
+il driver nativo `mongodb`.
+
+```bash
+$ mkdir mongo-project
+$ cd mongo-project
+$ npm init -y
+$ npm i mongodb
+```
+
+---
+
+## MongoDB e NodeJS
+
+Una volta installato il driver nel progetto, sarà necessario importarlo e inizializzare una connessione.
+Questo può essere fatto importando la classe `MongoClient` e creandone un'istanza passando la URL di
+connessione al database al suo costruttore:
+
+```js
+const { MongoClient } = require('mongodb')
+const url = 'mongodb://localhost:27017'
+const client = new MongoClient(url, { useUnifiedTopology: true })
+```
+
+---
+
+## MongoDB e NodeJS
+
+Non appena ottenuta un'istanza del client, potremo tentare una connessione al database attraverso il
+metodo `connect`:
+
+```js
+client.connect(err => {
+	if (err) throw err
+
+	const db = client.db('mydatabase')
+
+	client.close()
+})
+```
+
+---
+
+## MongoDB e NodeJS
+
+Il driver nativo supporta sia la sintassi basata sulle callback che quella basata sulle Promise. In
+generale, non passando nessuna callback ai metodi esposti dal driver, questo restituirà di default
+una Promise.
+
+---
+
+<FullScreenCode>
+
+```js
+const { MongoClient } = require('mongodb')
+const url = 'mongodb://localhost:27017'
+const client = new MongoClient(url, { useUnifiedTopology: true })
+
+async function getDatabase() {
+	try {
+		await client.connect()
+
+		const db = client.db('mydatabase')
+
+		return { db, client }
+	} catch (err) {
+		throw err
+	}
+}
+
+async function start() {
+	const { db, client } = await getDatabase()
+
+	client.close()
+
+	console.log('Done!')
+}
+
+start()
+```
+
+</FullScreenCode>
+
+---
+
+## Esercizio
+
+-   Creare un nuovo progetto e installare il driver nativo `mongodb`
+-   Utilizzare il driver nativo per connettersi al database MongoDB locale, e chiudere la connessione
+    subito dopo la connessione
+
+---
+
+## Inserimento di documenti
+
+Per inserire un documento all'interno di una collezione, si possono usare i metodi `insertOne`
+e `insertMany`.
+
+-   `insertOne` permette di aggiungere un documento alla collezione, e restituisce il risultato dell'operazione
+    di scrittura, oltre che l'id del documento appena inserito;
+
+-   `insertMany` permette di aggiungere un array di documenti alla collezione, e restituisce il risultato dell'operazione
+    di scrittura, oltre che l'elenco degli ID inseriti;
+
+---
+
+## Inserimento di documenti
+
+```js
+const people = db.collection('people')
+try {
+	const insertOneResult = await people.insertOne({ name: 'Frank', age: 26 })
+	const insertManyResult = await people.insertMany([
+		{ name: 'Kate', age: 21 },
+		{ name: 'Billy', age: 53 },
+	])
+} catch (error) {
+	// Gestione degli errori...
+}
+```
+
+> Utilizzando le Promise è _sempre_ opportuno racchiudere le chiamate asincrone in uno o più blocchi
+> `try/catch` per evitare un crash dell'applicazione!
+
+---
+
+## Ricerca di documenti
+
+Su ogni collezione è possibile invocare i metodi `find` e `findOne` per effettuare una ricerca sui
+documenti in essa contenuti. Entrambi i metodi ricevono come parametro un oggetto che rappresenta le
+condizioni su cui effettuare la ricerca:
+
+```js
+const people = db.collection('people')
+try {
+	const everyone = await people.find().toArray()
+	const frank = await people.findOne({
+		name: 'Frank',
+	})
+} catch (error) {
+	// Gestione degli errori...
+}
+```
+
+---
+
+## Ricerca di documenti
+
+Quando si utilizza il metodo `find` è importante tenere a mente che il risultato restituito **non è** un
+array contenente i documenti che soddisfano il predicato di ricerca, ma un _cursore_ per la query,
+che può essere utilizzato per iterare sui risultati ottenuti. Per ottenere un array di risultati
+è necessario invocare il metodo `toArray` sul cursore ottenuto:
+
+```js
+const everyone = await people.find().toArray()
+```
+
+---
+
+## Ricerca di documenti
+
+Se si vuole effettuare una ricerca sul campo `_id` non è sufficiente passare la stringa rappresentante
+l'id all'oggetto contente il predicato di ricerca:
+
+```js
+// Non restituirà nessun risultato!
+const frank = await people.findOne({
+	_id: '5dc6a5d140574723145a4207',
+})
+```
+
+---
+
+## Ricerca di documenti
+
+Gli `_id` sono degli oggetti di tipo `ObjectID`, ed è pertanto necessario creare un oggetto di quel
+tipo importando la funzione `ObjectID` da `mongodb` e passandole la stringa:
+
+```js
+const { ObjectID } = require('mongodb')
+
+const frank = await people.findOne({
+	_id: ObjectID('5dc6a5d140574723145a4207'),
+})
+```
+
+---
+
+## Esercizio
+
+Scrivere uno _script_ NodeJS in grado di funzionare come una TodoList:
+
+-   Deve ricevere da riga di comando una stringa che rappresenta un nuovo elemento e aggiungerlo alla
+    collezione `todos`
+-   Se non riceve nessun argomento da riga di comando, deve stampare tutti gli elementi presenti della
+    collezione `todos`
+
+```bash
+$ node todos "Comprare il pane"
+$ node todos "Andare al cinema"
+$ node todos
+* Comprare il pane
+* Andare al cinema
+```
+
+---
+
+## Eliminazione di documenti
+
+L'eliminazione di documenti all'interno di una collezione avvengono in maniera analoga
+per quanto avviene con l'inserimento: i metodi `deleteOne` e `deleteMany` permettono di rimuovere uno
+o più documenti che soddisfano i parametri di ricerca.
+
+---
+
+<FullScreenCode>
+
+```js
+const people = db.collection('people')
+try {
+	const deleteOneResult = await people.deleteOne({
+		name: 'Frank',
+	})
+	const deleteManyResult = await people.deleteMany({
+		age: 29,
+	})
+} catch (error) {
+	// ...
+}
+```
+
+</FullScreenCode>
+
+---
+
+## Aggiornamento di documenti
+
+I metodi `updateOne` e `updateMany` permettono di aggiornare uno o più documenti presenti su una collezione:
+
+-   il primo parametro passato ad entrambi i metodi rappresenta i criteri di ricerca dei documenti da aggiornare: tutti
+    i documenti che soddisfano _tutti_ i criteri inseriti verranno aggiornati;
+
+-   il secondo parametro rappresenta invece i criteri di aggiornamento: i documenti trovati verranno
+    aggiornati secondo le regole specificate nell'oggetto passato come secondo parametro;
+
+---
+
+<FullScreenCode>
+
+```js
+const people = db.collection('people')
+try {
+	const updateOneResult = await people.updateOne(
+		{ name: 'Frank' },
+		{
+			$set: {
+				age: 33,
+			},
+		},
+	)
+} catch (error) {
+	// ...
+}
+```
+
+</FullScreenCode>
+
+---
+
+## Aggiornamento di documenti
+
+L'oggetto passato come secondo parametro ai metodi `update*` può contenere i cosiddetti _update operators_,
+ovvero delle chiavi speciali che identificano il tipo di operazione da effettuare:
+
+-   `$set` deve essere valorizzato ad un oggetto che specifica quali campi _aggiornare_ e quali valori assegnare;
+-   `$inc` deve essere valorizzato ad un oggetto che specifica quali campi _incrementare_ e di quanto;
+-   `$unset` deve essere valorizzato ad un oggetto che specifica quali campi _rimuovere_ (il valore passato ai campi non è
+    importante e per convenzione viene valorizzato con la stringa vuota `""`)
+-   Altri operatori di update sono documentati su https://docs.mongodb.com/manual/reference/operator/update/unset/
+
+---
+
+## Esercizio
+
+Modificare lo script `todos` per ricevere un parametro aggiuntivo opzionale dopo la stringa contenente
+il nome del `todo`:
+
+-   Se il parametro aggiuntivo è `-c`, l'elemento viene considerato come completato e dovrà essere mostrato
+    nella lista con il simbolo `[OK]` al suo fianco;
+-   Se il parametro aggiuntivo è `-r`, l'elemento viene eliminato;
+
+Permettere inoltre di eliminare tutti gli elementi presenti nella collezione se la stringa passata
+come secondo parametro è uguale a `--reset`
+
+In entrambi i casi, se l'elemento non viene trovato deve essere visualizzato il messaggio "Elemento non trovato".
+
+---
+
+## Esercizio
+
+```bash
+$ node todos --reset
+$ node todos "Comprare il pane"
+$ node todos "Andare al cinema"
+$ node todos "Comprare il pane" -c
+$ node todos "Andare al cinema" -r
+* Comprare il pane [OK]
+$ node todos "Fare la spesa" -r
+Elemento non trovato
+```
+
+> Suggerimento: il risultato restituito dai metodi di `update`, `delete` e `insert` contiene al suo interno le
+> informazioni su _quanti_ elementi sono stati effettivamente impattati dall'operazione!
+
+---
+
+## Connection Pools
+
+Fintanto che utilizziamo NodeJS su script _one shot_ come quelli scritti fin'ora, è lecito istanziare
+la connessione ad ogni esecuzione; quando si opera su applicazioni web, che devono servire più client
+contemporaneamente, effettuare la connessione ad ogni richiesta può risultare lento.
+
+---
+
+## Connection Pools
+
+Il driver MongoDB per NodeJS mette a disposizione il meccanismo delle _connection pools_, che si occupa
+di aprire (e mantenere aperte) un numero di connessioni configurabile (di default è 5), per rendere
+meno oneroso l'accesso al database.
+
+---
+
+<FullScreenCode>
+
+```js
+const { MongoClient } = require('mongodb')
+const url = 'mongodb://localhost:27017'
+const poolSize = 12
+
+let client
+
+async function connect(databaseName) {
+	if (!client) {
+		client = await MongoClient.connect(url, {
+			useUnifiedTopology: true,
+			poolSize,
+		})
+	}
+
+	const db = client.db(databaseName)
+
+	return { client, db }
+}
+
+module.exports = connect
+```
+
+</FullScreenCode>
+
+---
+
+## Esercizio
+
+Scrivere un'applicazione Express/MongoDB che implementa le funzionalità dello script `TodoList` attraverso
+delle API:
+
+-   `GET /todos`: restituisce la lista dei todos
+-   `POST /todos`: aggiunge un todo, ricevendo un payload JSON contenente la chiave `title`, e ne restituisce l'`_id` sul database
+-   `PUT /todos/:id`: marca il todo con l'`_id` indicato come completato
+-   `DELETE /todos/:id`: elimina il todo con l'`_id` indicato
+-   `DELETE /todos`: elimina tutti i todos
+
+Tutte le risposte devono essere in formato JSON.
