@@ -1,0 +1,450 @@
+import { FullScreenCode } from 'mdx-deck'
+import myTheme from './theme'
+
+export const theme = myTheme
+
+## Configurazione
+
+Scrivere un'applicazione web richiede spesso l'uso di parametri di configurazione che possono variare
+in base alla macchina su cui l'applicazione viene eseguita, o l'ambiente nella quale la si esegue.
+
+Sovente si hanno parametri diversi, ad esempio, per l'esecuzione in ambiente di sviluppo locale,
+l'esecuzione in un contesto di test, l'esecuzione su pipeline di CI/CD e l'esecuzione in produzione.
+
+---
+
+## Configurazione
+
+È quindi buona prassi avere una configurazione _esterna_ al codice dell'applicazione, e utilizzare
+degli strumenti adeguati per _importare_ la configurazione all'interno dell'applicazione in fase
+di runtime.
+
+Uno degli strumenti più utilizzati per salvare le variabili di configurazione sono le _variabili d'ambiente_,
+dal momento che possono essere configurate a diversi livelli di priorità e sono supportate in tutti
+gli ambienti di esecuzione.
+
+---
+
+## Environment Variables
+
+Una variabile d'ambiente è una variabile che non dipende dal codice dell'applicazione, ma dall'ambiente
+sul quale questo viene eseguito. Le variabili d'ambiente sono solitamente di due tipi:
+
+-   Variabili d'ambiente di sistema: sono variabili d'ambiente valide _system wide_, accessibili a tutte
+    le applicazioni e generalmente definite a livello di sistema operativo; queste variabili sono visibili
+    utilizzando il comando `env`;
+-   Variabili di istanza: sono varibili d'ambiente definite per una specifica istanza di uno specifico
+    processo, ed accessibili solo ad esso. Sono definite in fase di esecuzione o a runtime attraverso
+    strumenti dedicati;
+
+---
+
+## Environment Variables
+
+All'interno di un processo NodeJS, è possibile visualizzare le variaibli d'ambiente definibili a livello
+di sistema o di istanza attraverso l'oggetto `process.env`. Tale oggetto contiene al suo interno una
+chiave per ogni variabile d'ambiente, ed il suo valore è disponibile in qualunque punto dell'applicazione:
+
+```js
+const port = Number(process.env.SERVER_PORT)
+```
+
+Le variabili d'ambiente sono solitamente interpretate come _stringhe_. È opportuno effettuare manualmente
+il _casting_ delle variabili al tipo corretto, in base all'esigenza.
+
+---
+
+## Environment Variables
+
+Ogni applicazione ha solitamente un certo numero di parametri di configurazione che possono essere
+salvati come variabili d'ambiente. Per semplificare la gestione della configurazione, è buona prassi
+utilizzare un file `.env`, ubicato nella _root_ del progetto, all'interno del quale indicare tutte
+le variabili di configurazione per una specifica applicazione:
+
+```env
+MONGO_URL=mongodb://localhost:27017
+MONGO_DATABASE=mydatabase
+MONGO_POOL_SIZE=12
+
+SERVER_PORT=3000
+```
+
+---
+
+## Environment Variables
+
+Per rendere accessibili ad un'applicazione NodeJS i valori contenuti all'interno del file `.env`
+si può utilizzare la libreria `dotenv`, installabile tramite `npm`:
+
+```bash
+$ npm i dotenv
+```
+
+La libreria deve essere importata e utilizzata il prima possibile durante l'esecuzione del codice,
+solitamente come prima riga dell'applicazione:
+
+```js
+require('dotenv').config()
+```
+
+---
+
+## Environment Variables
+
+Utilizzando `dotenv`, le variabili d'ambiente verranno lette con il seguente ordine di priorità
+
+-   Le variabili definite nel file `.env` hanno la priorità **più bassa**;
+-   Le variabili definite in fase di esecuzione dell'applicazione hanno priorità **intermedia**;
+-   Le variabili di sistema hanno priorità **assoluta**;
+
+Questo vuol dire che se la stessa variabile è definita sia a livello di sistem che nel file `.env`,
+verrà utilizzato il valore definito a livello di sistema ed il valore del file `.env` sarà ignorato.
+
+---
+
+## Environment Variables
+
+Ogni macchina su cui un'applicazione viene eseguita avrà dei parametri di configurazione differenti;
+inoltre, all'interno del file `.env` potrebbero essere inserite informazioni sensibili come password
+di accesso al database, chiavi private di cifratura, ecc.
+
+Per questo motivo il file `.env` non va <u>**mai**</u> tracciato in source control (`git`, `svn`, ecc...).
+
+Si può, tuttavia, tracciare in source control un file `.env.example` contenente tutte le variabili
+richieste dall'applicazione con valori di default o, eventualmente, valori vuoti.
+
+---
+
+## Esercizio
+
+-   Modificare la Todo API perché utilizzi, per le variabili rilevanti, una configurazione letta da
+    variabili d'ambiente attraverso la libreria `dotenv` e l'oggetto `process.env`.
+
+-   Creare un modulo che esporti tutte le variabili di configurazione sotto forma di oggetto JavaScript,
+    valorizzando le variabili non definite nell'environment con valori di default.
+
+---
+
+## Autenticazione e Autorizzazione
+
+Molte applicazioni richiedono che le richieste effettuate dai client siano _autenticate_, ovvero
+firmate attraverso un meccanismo arbitrario che permetta di verificare che la richiesta effettuata
+arrivi da un client noto.
+
+L'autenticazione su una API NodeJS può avvenire attraverso numerose metodologie, e tra le più diffuse
+troviamo quella del _bearer token_.
+
+---
+
+## Autenticazione e Autorizzazione
+
+Un _bearer token_ è una stringa, solitamente esadecimale, inviata dal client all'interno dell'header
+`Authorization`, in grado di identificarlo univocamente tra tutti gli altri client e permettere al
+server di verificare la richiesta e procedere alla sua esecuzione (o eventualmente ad un processo
+di autorizzazione individuale).
+
+---
+
+## Autenticazione e Autorizzazione
+
+Un _bearer token_ può essere rilasciato ad un client in diversi modi: può essere rilasciato staticamente,
+su richiesta del client, sotto forma di _API Key_, oppure dinamicamente nel momento in cui il client
+fornisce al server una coppia username/password valide.
+
+---
+
+## Autenticazione e Autorizzazione
+
+Nel caso in cui si utilizzi una coppia username/password, bisogna prevedere un meccanismo di crezione
+utenti che può passare attraverso una pagina di registrazione o un comando CLI eseguito da un amministratore:
+
+```bash
+$ node src/create-user john hello123
+Created user 'john'
+```
+
+---
+
+## Autenticazione e Autorizzazione
+
+Quando si salvano delle utenze sul database, non bisogna <u>**mai**</u>, per nessun motivo, in nessuna
+circostanza, salvare la password _in chiaro_, ma bisogna _sempre_ effettuarne un hash crittografico
+attraverso l'uso di algoritmi _noti_, _validati_ ed _estensivamente testati_.
+
+Una libreria che fornisce tale funzionalità in NodeJS è `bcrypt`, installabile tramite `npm`:
+
+```bash
+$ npm i bcrypt
+```
+
+---
+
+<FullScreenCode>
+
+```js
+const { hashSync } = require('bcrypt')
+const config = require('./utils/config.util')
+const connect = require('./utils/connect.util')
+
+async function start() {
+	const [, , username, password] = process.argv
+
+	if (!username || !password) {
+		throw new Error('Username and password are required!')
+	}
+
+	const { db, client } = await connect(config.mongoDatabase)
+	const usersCollection = db.collection('users')
+
+	const result = await usersCollection.insertOne({
+		username,
+		password: hashSync(password, 10),
+	})
+
+	if (result.insertedCount === 0) {
+		throw new Error('Cannot create user')
+	}
+
+	const user = result.ops[0]
+
+	console.log(`Created user '${user.username}'`)
+
+	client.close()
+}
+
+start()
+```
+
+</FullScreenCode>
+
+---
+
+## Esercizio
+
+Aggiungere uno script al progetto della Todo API che permetta di creare un utente, ricevendo username
+e password come parametri da riga di comando e creando un documento sulla collezione `users` contenente
+lo username e la password _cifrata_ con `bcrypt`
+
+> Le funzioni `bcrypt` per cifrare stringhe sono `hash` e `hashSync`, e ricevono la stringa da cifrare
+> e il numero di iterazioni dell'algoritmo di cifratura crittografica.
+
+---
+
+## JWT
+
+Un JWT (JSON Web Token, https://jwt.io/) è una tipologia di token spesso utilizzata per effettuare autenticazione
+su API.
+
+Un JWT codifica un oggetto JSON contenente informazioni relative al token, ed è sempre firmato
+con una chiave privata non disponibile all'esterno, rendendone quindi impossibile la falsificazione
+e sempre possibile la decodifica.
+
+---
+
+## JWT
+
+La procedura che si segue per emettere un JWT solitamente è:
+
+-   L'utente effettua l'accesso attraverso username e password;
+-   Il server verifica che lo username esista, e che l'hash della password inviata corrisponda con
+    l'hash della password salvata sul database;
+-   A verifica avvenuta, il server crea un token per l'utente e lo invia in risposta;
+-   L'utente può utilizzare quel token per autorizzare le sue richieste fino alla sua scadenza.
+
+---
+
+## Autenticazione
+
+Una volta creato l'utente, l'applicazione deve esporre una modalità che lo stesso può usare per effettuare
+l'autenticazione. Questo è solitamente implementato attraverso un endpoint di `login`, a cui passare
+tramite una chiamata HTTP POST le credenziali per ricevere il token di accesso come risposta.
+
+---
+
+## Autenticazione
+
+Per creare un token, è possibile utilizzare la libreria `jsonwebtoken`, installabile con `npm`:
+
+```bash
+$ npm i jsonwebtoken
+```
+
+La libreria espone il metodo `sign`, che riceve il payload da inserire nel token e il _secret_
+da utilizzare per firmare il token. È buona pratica inserire il token in configurazione, e
+configurarlo come variabile d'ambiente.
+
+---
+
+<FullScreenCode>
+
+```js
+app.post('/login', async (req, res, next) => {
+	const usersCollection = db.collection('users')
+	const { username, password } = req.body
+
+	const user = await usersCollection.findOne({ username })
+	if (!user) {
+		return next(new Error('ERR_NOT_FOUND'))
+	}
+
+	if (!(await compare(password, user.password))) {
+		return next(new Error('ERR_INVALID_CREDENTIALS'))
+	}
+
+	const token = jwt.sign({ id: user._id }, config.jwtSecret)
+
+	return res.send(token)
+})
+```
+
+</FullScreenCode>
+
+---
+
+## Esercizio
+
+Aggiungere alla Todo API un endpoint `POST /login` che permetta all'utente, dopo aver passato
+in un payload JSON `username` e `password` corretti, di ricevere un JSON Web Token.
+
+> La funzione `compare` di `bcrypt` permette di verificare che una password corrisponda ad un hash
+> precedentemente salvato.
+
+```bash
+$curl -X POST \
+    -H "Content-Type: application/json" \
+    --data \
+    '{"username": "john", "password": "hello123"}' \
+    localhost:3000/login
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.ey
+JpZCI6IjVkYzZkMjJlNzc3OWUzMTk4OGM3NjVmO
+CIsImlhdCI6MTU3MzMxMjU1MH0.wWD8ujyOyYA6
+RcPoHCRLWG_GYhAJQx9AdkLf_iM8tvE
+```
+
+---
+
+## Passport
+
+Per semplificare la procedura di autorizzazione degli utenti, è disponibile una libreria NodeJS
+chiamata `passport`. Passport implementa un middleware express che rende semplice l'autorizzazione
+di utenti attraverso un numero molto elevato di _strategie_, tra cui anche la strategia basata su JWT.
+
+Assieme a `passport`, è possibile installare anche la strategia `passport-jwt`.
+
+```bash
+$ npm i passport passport-jwt
+```
+
+---
+
+<FullScreenCode>
+
+```js
+const passport = require('passport')
+const { Strategy, ExtractJwt } = require('passport-jwt')
+
+const strategy = new Strategy(
+	{
+		jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+		secretOrKey: config.jwtSecret,
+	},
+	async (payload, done) => {
+		const usersCollection = db.collection('users')
+		const user = await usersCollection.findOne({
+			_id: ObjectID(payload.id),
+		})
+
+		if (!user) {
+			done(new Error('ERR_NOT_AUTHORIZED'))
+		}
+
+		done(null, user)
+	},
+)
+
+passport.use(strategy)
+```
+
+</FullScreenCode>
+
+---
+
+## Passport
+
+Una volta configurata la strategia, è sufficiente utilizzare il middleware `authenticate` esposto
+da Passport su tutte le _route_ che vogliamo vengano protette:
+
+```js
+const auth = passport.authenticate('jwt', { session: false })
+
+app.get('/todos', auth, (req, res) => {
+	// ...
+})
+```
+
+---
+
+## Passport
+
+Ogni volta che il middleware di Passport autorizza un utente, questo viene solitamente aggiunto all'oggetto
+Request sulla chiave `user`, ed è quindi accessibile ai middleware successivi attraverso `req.user`.
+
+Questo può essere comodo quando si vuole implementare una divisione di ruoli tra più utenti, o quando
+si vuole servire ad un utente solo le risorse che gli appartengono.
+
+---
+
+## Esercizio
+
+-   Proteggere gli endpoint della Todo API utilizzando Passport, e permettendo l'accesso solo ad utenti
+    verificati.
+
+-   Aggiungere ai singoli TODO la chiave `userId`, contenente l'`_id` dell'utente che ha aggiunto l'elemento.
+    Permettere ad utente di interagire solamente con i TODO da lui inseriti.
+
+---
+
+## Best Practices
+
+### Dividere il progetto in più file
+
+Sebbene per progetti piccoli avere pochi file sia più semplice, al crescere della complessità del
+progetto risulta difficile gestire file molto grandi. Per questo è ideale dividere il progetto in
+tanti file più piccoli, e cercare di rispettare il _Single Responsibility Principle_: ogni file/modulo
+si deve occupare di un solo aspetto dell'applicazione.
+
+---
+
+## Best Practices
+
+### Non condividere credenziali e segreti
+
+Le credenziali di accesso ad un database e le chiavi di cifratura segrete utilizzate dall'applicazione
+non devono essere _mai_ condivise se non attraverso canali sicuri e a loro volta cifrati.
+
+Non si deve _mai_ tracciare credenziali e segreti in source control, e non si devono _mai_ inserire
+segreti applicativi, password, e altre informazioni sensibili in comunicazioni non cifrate (SMS, Email, ecc...)
+
+---
+
+## Best Practices
+
+### Utilizzare le variabili d'ambiente
+
+Utilizzando le variabili d'ambiente per la configurazione delle applicazioni, non dobbiamo preoccuparci
+di modificare il codice ogni volta che vogliamo modificare una configurazione, e possiamo mantenere
+configurazioni indipendenti per ogni macchina sulla quale eseguiamo l'applicazione.
+
+Molti cloud provider offrono inoltre ambienti di esecuzione NodeJS gestiti automaticamente, che si
+aspettano che le applicazioni vengano configurate attraverso l'impostazione di variabili d'ambiente
+
+---
+
+## Best Practices
+
+### Non salvare mai le password degli utenti
+
+I dati di un utente non sono _mai_ al sicuro se le sue password sono salvate (in chiaro o cifrate) sul database
+di un'applicazione. Effettuare _sempre_ l'hash delle password dell'utente, e non inviare mai password (nemmeno
+temporanee) in chiaro attraverso canali non cifrati come Email o SMS.
